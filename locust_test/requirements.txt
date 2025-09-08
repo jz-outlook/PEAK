@@ -1,0 +1,35 @@
+# AI Talk WebSocket 压力测试系统依赖
+
+# 核心测试框架
+locust==2.34.0
+
+# 数据验证和配置管理
+pydantic==2.11.7
+pydantic-settings==2.10.1
+
+# WebSocket 客户端
+websocket-client==1.8.0
+
+# HTTP 请求库
+requests==2.32.5
+
+# 异步支持
+gevent==25.8.2
+greenlet==3.2.4
+
+# 系统监控
+psutil==7.0.0
+
+# 消息序列化
+msgpack==1.1.1
+
+# 网络通信
+pyzmq==27.0.2
+
+# 其他工具
+python-dotenv==1.1.1
+certifi==2025.8.3
+charset-normalizer==3.4.3
+idna==3.10
+urllib3==2.5.0
+
