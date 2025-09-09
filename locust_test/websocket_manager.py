@@ -96,23 +96,10 @@ class WebSocketManager:
 
     def _check_existing_connection(self) -> bool:
         """检查是否已有连接在运行"""
-        # 检查是否已有活跃连接（避免重复建立）
-        if hasattr(self, 'ws') and self.ws and self.ws.sock and self.ws.sock.connected:
-            logger.warning(f"{self.user_number} 已存在活跃WebSocket连接，无需重复建立")
-            return True
-
-        # 检查是否已有连接线程在运行（避免线程堆积）
+        # 最简单的检查：只检查是否有活跃的连接线程
         if hasattr(self, 'ws_thread') and self.ws_thread and self.ws_thread.is_alive():
-            # 等待一小段时间，让线程有机会完成连接
-            import time
-            time.sleep(0.1)
-            # 再次检查连接状态
-            if hasattr(self, 'ws') and self.ws and self.ws.sock and self.ws.sock.connected:
-                logger.info(f"{self.user_number} 等待后连接已建立，无需重复连接")
-                return True
-            else:
-                logger.warning(f"{self.user_number} 已有WebSocket连接线程在运行，跳过本次连接请求")
-                return True
+            logger.warning(f"{self.user_number} 已有WebSocket连接线程在运行，跳过本次连接请求")
+            return True
 
         return False
 
@@ -346,34 +333,23 @@ class WebSocketManager:
 
     def _on_error(self, ws, error):
         """WebSocket错误回调"""
-        if self.ws is None or ws is None:
-            logger.warning(f"{self.user_number} WebSocket错误回调被调用，但WebSocket对象已为空，忽略此错误")
+        # 防止在清理过程中处理错误
+        if self.ws is None:
             return
 
         error_str = str(error)
-
-        # 构建包含lesson_id的错误日志
-        phone_info = f"['phone_number': '{self.current_phone_number}']" if self.current_phone_number else "['phone_number': 'None']"
-        lesson_info = f"[lesson_id:{self.current_lesson_id}]" if self.current_lesson_id else "[lesson_id:None]"
-        logger.error(f"{self.user_number} {lesson_info}WebSocket错误：{error_str}")
+        logger.error(f"{self.user_number} WebSocket错误：{error_str}")
 
         # 根据错误类型调整连接质量
         if "ping/pong timed out" in error_str:
             self.connection_quality = "poor"
             self.heartbeat_failures += 1
-            logger.warning(
-                f"{self.user_number} {phone_info}{lesson_info}心跳超时，连接质量降级为: {self.connection_quality}")
         elif "Connection to remote host was lost" in error_str:
             self.connection_quality = "bad"
-            logger.warning(
-                f"{self.user_number} {phone_info}{lesson_info}连接丢失，连接质量降级为: {self.connection_quality}")
-
-        # 添加调试信息
-        logger.debug(f"{self.user_number}{phone_info} {lesson_info}WebSocket错误详情 - 错误类型: {type(error)}")
-        logger.debug(
-            f"{self.user_number} {phone_info}{lesson_info}WebSocket错误详情 - 连接状态: {ws.sock.connected if ws.sock else 'N/A'}")
-        if hasattr(ws, 'url'):
-            logger.debug(f"{self.user_number} {phone_info}{lesson_info}WebSocket错误详情 - URL: {ws.url[:100]}...")
+        elif "'NoneType' object has no attribute 'sock'" in error_str:
+            # 处理WebSocket对象为None的情况
+            logger.error(f"{self.user_number} WebSocket对象为None，强制清理连接")
+            self._force_cleanup()
 
     def _on_close(self, ws, close_status_code, close_msg):
         """WebSocket关闭回调"""
