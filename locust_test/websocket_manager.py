@@ -602,6 +602,7 @@ class WebSocketManager:
         self.current_lesson_id = None
         self.current_lesson_token = None
         self.current_phone_number = None
+
     def _add_to_buffer(self, message: str):
         """添加消息到缓冲区"""
         import time

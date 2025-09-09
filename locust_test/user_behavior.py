@@ -593,7 +593,7 @@ class UserBehavior(HttpUser):
         if (self.state == ConnectionState.PROCESSING and
                 self.ws_manager.is_connected()):
             message = random.choice(TEST_MESSAGES)
-            logger.info(f"{self.user_number} 发送消息: {message}")
+            logger.debug(f"{self.user_number} 发送消息: {message}")
             self.ws_manager.send_message(message)
         else:
             # 添加详细的状态信息
