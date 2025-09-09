@@ -91,6 +91,22 @@ class TestDataConfig(BaseModel):
         {
             "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_1-b_121001.json?sid=49&bid=51&gid=148&mid=8600",
             "character_id": "lily_white"
+        },
+        {
+            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_5-a_092901.json?sid=49&bid=51&gid=148&mid=8600",
+            "character_id": "lily_white"
+        },
+        {
+            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_4-c_121901.json?sid=49&bid=51&gid=148&mid=8600",
+            "character_id": "lily_white"
+        },
+        {
+            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_5-c_120801.json?sid=49&bid=51&gid=148&mid=8600",
+            "character_id": "lily_white"
+        },
+        {
+            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_7-a_121201.json?sid=49&bid=51&gid=148&mid=8600",
+            "character_id": "lily_white"
         }
     ], description="课程参数列表")
     
