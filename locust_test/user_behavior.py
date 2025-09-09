@@ -27,48 +27,49 @@ logger = logging.getLogger(__name__)
 
 class UserBehavior(HttpUser):
     """用户行为测试类"""
-    
+
     # 默认等待时间，会在初始化时动态更新
     def wait_time(self):
         if hasattr(self, '_wait_time_func'):
             return self._wait_time_func(self)
         else:
             return between(DEFAULT_MESSAGE_SEND_INTERVAL_MIN, DEFAULT_MESSAGE_SEND_INTERVAL_MAX)(self)
+
     host = BASE_API_URL
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
         # 用户标识和状态
         self.user_number = self._get_user_number()
         self.global_user_id = str(uuid.uuid4())
         self.state = ConnectionState.INIT
-        
+
         # 用户数据
         self.account_data: Optional[Dict[str, str]] = None
         self.user_info: Dict[str, Any] = {}
         self.lesson_info: Dict[str, Any] = {}
         self.current_lesson_params: Optional[Dict[str, str]] = None
-        
+
         # 重连控制
         self.last_reconnect_time = 0
         self.reconnect_interval = 5.0  # 重连间隔5秒
-        
+
         # 配置参数
         self._load_command_line_options()
-        
+
         # 初始化WebSocket管理器
         self.ws_manager = WebSocketManager(self.user_number)
         self._setup_websocket_callbacks()
-        
+
         # 启动统计和检查线程（仅第一个用户）
         if self.user_number == "user_1":
             self._start_stats_printer()
             self._start_user_check_thread()
-            
+
         # 更新全局配置
         self._update_global_config()
-        
+
         logger.info(f"{self.user_number} 初始化完成")
 
     def _get_user_number(self) -> str:
@@ -86,15 +87,15 @@ class UserBehavior(HttpUser):
         self.message_send_interval_min = self.environment.parsed_options.message_send_interval_min
         self.message_send_interval_max = self.environment.parsed_options.message_send_interval_max
         self.target_accounts = max(1, int(self.environment.runner.target_user_count * self.account_multiplier))
-        
+
         # 批次控制参数
         self.sync_batch_size = self.environment.parsed_options.sync_batch_size
         self.websocket_batch_size = self.environment.parsed_options.websocket_batch_size
         self.batch_start_interval = self.environment.parsed_options.batch_start_interval
-        
+
         # 动态更新等待时间（使用实例属性方式）
         self._wait_time_func = between(self.message_send_interval_min, self.message_send_interval_max)
-        
+
         # 更新批次管理器配置
         batch_manager.sync_batch_size = self.sync_batch_size
         batch_manager.websocket_batch_size = self.websocket_batch_size
@@ -111,16 +112,16 @@ class UserBehavior(HttpUser):
     def _update_global_config(self):
         """更新全局配置"""
         global config, initial_users_spawned, initial_users_spawned_lock, spawned_user_count, spawned_user_lock
-        
+
         # 更新目标用户数
         with initial_users_spawned_lock:
             config.target_users = self.environment.runner.target_user_count
-            
+
         # 检查初始用户是否全部生成
         with spawned_user_lock:
             spawned_user_count += 1
             current_spawned = spawned_user_count
-            
+
         with initial_users_spawned_lock:
             if current_spawned >= config.target_users and not initial_users_spawned:
                 initial_users_spawned = True
@@ -129,13 +130,15 @@ class UserBehavior(HttpUser):
 
     def _start_stats_printer(self):
         """启动统计打印线程"""
+
         def print_stats_loop():
             while True:
                 # 检查测试是否已经停止
-                if hasattr(self.environment.runner, 'state') and self.environment.runner.state in ['stopping', 'stopped']:
+                if hasattr(self.environment.runner, 'state') and self.environment.runner.state in ['stopping',
+                                                                                                   'stopped']:
                     logger.info("测试已停止，统计打印线程退出")
                     break
-                    
+
                 stats = ws_stats.get_stats()
                 closures = stats["closures"]
                 logger.info(
@@ -158,13 +161,15 @@ class UserBehavior(HttpUser):
 
     def _start_user_check_thread(self):
         """启动用户数量检查线程"""
+
         def check_user_loop():
             while True:
                 # 检查测试是否已经停止
-                if hasattr(self.environment.runner, 'state') and self.environment.runner.state in ['stopping', 'stopped']:
+                if hasattr(self.environment.runner, 'state') and self.environment.runner.state in ['stopping',
+                                                                                                   'stopped']:
                     logger.info("测试已停止，用户数量检查线程退出")
                     break
-                    
+
                 with initial_users_spawned_lock:
                     if initial_users_spawned:
                         self._check_and_spawn_users()
@@ -181,7 +186,8 @@ class UserBehavior(HttpUser):
                 current_active = active_users
                 deficit = config.target_users - current_active
                 if deficit > 0:
-                    logger.info(f"用户数量检查：当前活跃 {current_active}/{config.target_users}，需要补充 {deficit} 个用户")
+                    logger.info(
+                        f"用户数量检查：当前活跃 {current_active}/{config.target_users}，需要补充 {deficit} 个用户")
                     self._spawn_new_users(deficit)
                 else:
                     logger.debug(f"用户数量检查：当前活跃 {current_active}/{config.target_users}，无需补充")
@@ -235,25 +241,25 @@ class UserBehavior(HttpUser):
         """用户启动时执行的初始化流程"""
         logger.info(f"{self.user_number} 启动，进入初始化状态")
         self._increment_active_users()
-        
+
         # 执行登录和账号准备
         if self._login_and_cache_account():
             self._wait_for_accounts_ready()
-            
+
             # 等待同步批次就绪
             sync_batch_id = batch_manager.get_sync_batch_id(self.user_number)
             if not batch_manager.wait_for_sync_batch(self.user_number, sync_batch_id):
                 logger.error(f"{self.user_number} 同步批次等待失败")
                 return
-            
+
             self._execute_post_login_steps()
-            
+
             # 等待WebSocket连接批次就绪
             ws_batch_id = batch_manager.get_websocket_batch_id(self.user_number)
             if not batch_manager.wait_for_websocket_batch(self.user_number, ws_batch_id):
                 logger.error(f"{self.user_number} WebSocket批次等待失败")
                 return
-            
+
             # 如果状态正常，启动WebSocket连接
             if self.state == ConnectionState.PROCESSING:
                 self._start_websocket_connection()
@@ -349,7 +355,7 @@ class UserBehavior(HttpUser):
     def _get_user_profile(self) -> bool:
         """获取用户个人信息（同时验证token有效性）"""
         from config import USER_PROFILE_ENDPOINT
-        
+
         headers = {"Authorization": f"Bearer {self.account_data['access_token']}"}
         try:
             response = self.client.get(
@@ -394,14 +400,22 @@ class UserBehavior(HttpUser):
             data = response.json()
             lesson_data = data.get("data", {})
 
+            # 检查返回的lesson_id是否有效
+            lesson_id = lesson_data.get("lesson_id")
+            token = lesson_data.get("token")
+
+            if not lesson_id or not token:
+                logger.error(f"{self.user_number} 开始课程失败：返回的lesson_id或token为空")
+                return False
+
             self.lesson_info = {
-                "lesson_id": lesson_data.get("lesson_id"),
-                "token": lesson_data.get("token")
+                "lesson_id": lesson_id,
+                "token": token
             }
-            
+
             # 解析material_id为WebSocket所需的参数
             self.current_lesson_params = self._parse_material_id(raw_lesson_params['material_id'])
-            
+
             logger.info(f"{self.user_number} 开始课程成功：{self.lesson_info}")
             return True
         except Exception as e:
@@ -413,19 +427,19 @@ class UserBehavior(HttpUser):
         try:
             # material_id格式: "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_1-c_121102.json?sid=49&bid=51&gid=148&mid=8600"
             # 需要解析出: topic, materials, sid, bid, gid, mid
-            
+
             # 分割路径和查询参数
             if '?' in material_id:
                 path_part, query_part = material_id.split('?', 1)
             else:
                 path_part = material_id
                 query_part = ""
-            
+
             # 解析路径部分
             path_parts = path_part.split('/')
             topic = path_parts[0]  # "topic_talk-b2-1"
             materials = '/'.join(path_parts[1:])  # "materials/topic_talk-b2-1-lesson_1-c_121102.json"
-            
+
             # 解析查询参数
             params = {}
             if query_part:
@@ -433,7 +447,7 @@ class UserBehavior(HttpUser):
                     if '=' in param:
                         key, value = param.split('=', 1)
                         params[key] = value
-            
+
             return {
                 'topic': topic,
                 'materials': materials,
@@ -442,7 +456,7 @@ class UserBehavior(HttpUser):
                 'gid': params.get('gid', ''),
                 'mid': params.get('mid', '')
             }
-            
+
         except Exception as e:
             logger.error(f"{self.user_number} 解析material_id失败：{str(e)}")
             return {
@@ -489,11 +503,13 @@ class UserBehavior(HttpUser):
         logger.info(f"{self.user_number} 课程正常完成，准备下一节课")
         self._reset_lesson_state()
         # 课程完成后，等待一段时间再重新开始，避免过于频繁
+
         import threading
+
         def delayed_restart():
             time.sleep(DEFAULT_LESSON_RESTART_DELAY)  # 使用配置的延迟时间
             self._restart_lesson_with_existing_account()
-        
+
         restart_thread = threading.Thread(target=delayed_restart, daemon=True)
         restart_thread.start()
 
@@ -508,7 +524,7 @@ class UserBehavior(HttpUser):
             delay = random.uniform(1.0, 3.0)
             time.sleep(delay)
             self._restart_lesson_with_existing_account()
-        
+
         restart_thread = threading.Thread(target=delayed_restart, daemon=True)
         restart_thread.start()
 
@@ -517,12 +533,12 @@ class UserBehavior(HttpUser):
         if not self.account_data:
             logger.error(f"{self.user_number} 没有可用账号，无法重新开始课程")
             return
-            
+
         # 先关闭现有的WebSocket连接
         if self.ws_manager:
             logger.info(f"{self.user_number} 关闭现有WebSocket连接，准备重新开始课程")
             self.ws_manager.close_connection()
-            
+
         # 检查用户信息是否已存在，避免重复获取
         if not self.user_info or not self.user_info.get('english_name'):
             logger.info(f"{self.user_number} 用户信息缺失，重新获取用户信息")
@@ -533,14 +549,31 @@ class UserBehavior(HttpUser):
                 return
         else:
             logger.info(f"{self.user_number} 使用现有用户信息：{self.user_info['english_name']}")
-            
-        # 使用现有账号重新选择课程
-        if self._start_lesson_with_random_params():
-            self.state = ConnectionState.PROCESSING
-            self._start_websocket_connection()
-            logger.info(f"{self.user_number} 使用现有账号重新开始课程成功")
-        else:
-            logger.error(f"{self.user_number} 重新开始课程失败")
+
+        # 使用现有账号重新选择课程，增加重试机制
+        max_retries = 3
+        for attempt in range(max_retries):
+            if self._start_lesson_with_random_params():
+                # 检查是否获取到了新的lesson_id
+                new_lesson_id = self.lesson_info.get('lesson_id')
+                if new_lesson_id:
+                    logger.info(f"{self.user_number} 成功获取新课程，lesson_id: {new_lesson_id}")
+                    self.state = ConnectionState.PROCESSING
+                    self._start_websocket_connection()
+                    logger.info(f"{self.user_number} 使用现有账号重新开始课程成功")
+                    return
+                else:
+                    logger.warning(f"{self.user_number} 第{attempt + 1}次尝试：获取到空的lesson_id")
+            else:
+                logger.warning(f"{self.user_number} 第{attempt + 1}次尝试：开始课程失败")
+
+            # 如果不是最后一次尝试，等待一段时间再重试
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 2.0  # 递增等待时间：2秒、4秒
+                logger.info(f"{self.user_number} 等待 {wait_time} 秒后重试获取新课程")
+                time.sleep(wait_time)
+
+        logger.error(f"{self.user_number} 重新开始课程失败，已尝试 {max_retries} 次")
 
     def _reset_lesson_state(self):
         """重置课程状态（保留账号和用户信息）"""
@@ -628,6 +661,7 @@ spawned_user_lock = threading.Lock()
 initial_users_spawned = False
 initial_users_spawned_lock = threading.Lock()
 
+
 # 全局配置实例
 class Config:
     _instance = None
@@ -639,5 +673,6 @@ class Config:
                 cls._instance = super().__new__(cls)
                 cls._instance.target_users = 10
         return cls._instance
+
 
 config = Config()

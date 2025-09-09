@@ -68,7 +68,7 @@ class TimingConfig(BaseModel):
     stats_interval: float = Field(default=60.0, ge=5.0, le=300.0, description="统计打印间隔（秒）")
     message_send_interval_min: float = Field(default=5.0, ge=0.1, le=60.0, description="消息发送最小间隔（秒）")
     message_send_interval_max: float = Field(default=10.0, ge=0.1, le=60.0, description="消息发送最大间隔（秒）")
-    lesson_restart_delay: float = Field(default=2.0, ge=0.1, le=30.0, description="课程结束后重新开始延迟（秒）")
+    lesson_restart_delay: float = Field(default=5.0, ge=0.1, le=30.0, description="课程结束后重新开始延迟（秒）")
 
 
 class LoggingConfig(BaseModel):
