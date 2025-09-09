@@ -96,10 +96,17 @@ class WebSocketManager:
 
     def _check_existing_connection(self) -> bool:
         """检查是否已有连接在运行"""
-        # 最简单的检查：只检查是否有活跃的连接线程
+        # 检查是否有活跃的连接线程
         if hasattr(self, 'ws_thread') and self.ws_thread and self.ws_thread.is_alive():
-            logger.warning(f"{self.user_number} 已有WebSocket连接线程在运行，跳过本次连接请求")
-            return True
+            # 等待一小段时间，让线程有机会完成连接
+            import time
+            time.sleep(0.1)
+
+            # 检查连接状态，但使用更宽松的条件
+            if (hasattr(self, 'ws') and self.ws and
+                    hasattr(self, 'ws_connected') and self.ws_connected):
+                logger.info(f"{self.user_number} 连接已建立，跳过重复连接")
+                return True
 
         return False
 
