@@ -16,8 +16,8 @@ class APIConfig(BaseModel):
     
     # 接口端点
     login_endpoint: str = Field(default="/register/userLogin.php", description="登录接口")
-    user_profile_endpoint: str = Field(default="/profile/getUserProfile.php", description="用户信息接口")
-    start_lesson_endpoint: str = Field(default="/lesson/startLessonv2.php", description="开始课程接口")
+    user_profile_endpoint: str = Field(default="/profile/getUserProfile.php", description="获取用户信息接口")
+    start_lesson_endpoint: str = Field(default="/lesson/startLessonv2.php", description="获取课程信息接口")
 
 
 class WebSocketConfig(BaseModel):
@@ -89,15 +89,7 @@ class TestDataConfig(BaseModel):
     """测试数据配置"""
     lesson_params: List[Dict[str, str]] = Field(default=[
         {
-            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_1-c_121102.json?sid=49&bid=51&gid=148&mid=8600",
-            "character_id": "lily_white"
-        },
-        {
-            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_1-b_121001.json?sid=49&bid=51&gid=148&mid=8599",
-            "character_id": "lily_white"
-        },
-        {
-            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_1-a_120701.json?sid=49&bid=51&gid=148&mid=8642",
+            "material_id": "topic_talk-b2-1/materials/topic_talk-b2-1-lesson_1-b_121001.json?sid=49&bid=51&gid=148&mid=8600",
             "character_id": "lily_white"
         }
     ], description="课程参数列表")

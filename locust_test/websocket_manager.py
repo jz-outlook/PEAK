@@ -40,6 +40,7 @@ class WebSocketManager:
         # 新增：课程信息存储（用于错误日志）
         self.current_lesson_id = None  # 当前课程ID
         self.current_lesson_token = None  # 当前课程token
+        self.current_phone_number = None  # 当前用户手机号
 
         # 回调函数
         self.on_message_callback = None
@@ -83,6 +84,7 @@ class WebSocketManager:
         # 存储当前课程信息（用于错误日志）
         self.current_lesson_id = lesson_info.get('lesson_id')
         self.current_lesson_token = lesson_info.get('token')
+        self.current_phone_number = account_data.get('username')  # 存储用户手机号
 
         # 构建WebSocket URL
         websocket_url = self._build_websocket_url(account_data, user_info, lesson_info, lesson_params)
@@ -349,8 +351,9 @@ class WebSocketManager:
             return
 
         error_str = str(error)
-        
+
         # 构建包含lesson_id的错误日志
+        phone_info = f"['phone_number': '{self.current_phone_number}']" if self.current_phone_number else "['phone_number': 'None']"
         lesson_info = f"[lesson_id:{self.current_lesson_id}]" if self.current_lesson_id else "[lesson_id:None]"
         logger.error(f"{self.user_number} {lesson_info}WebSocket错误：{error_str}")
 
@@ -358,16 +361,19 @@ class WebSocketManager:
         if "ping/pong timed out" in error_str:
             self.connection_quality = "poor"
             self.heartbeat_failures += 1
-            logger.warning(f"{self.user_number} {lesson_info}心跳超时，连接质量降级为: {self.connection_quality}")
+            logger.warning(
+                f"{self.user_number} {phone_info}{lesson_info}心跳超时，连接质量降级为: {self.connection_quality}")
         elif "Connection to remote host was lost" in error_str:
             self.connection_quality = "bad"
-            logger.warning(f"{self.user_number} {lesson_info}连接丢失，连接质量降级为: {self.connection_quality}")
+            logger.warning(
+                f"{self.user_number} {phone_info}{lesson_info}连接丢失，连接质量降级为: {self.connection_quality}")
 
         # 添加调试信息
-        logger.debug(f"{self.user_number} {lesson_info}WebSocket错误详情 - 错误类型: {type(error)}")
-        logger.debug(f"{self.user_number} {lesson_info}WebSocket错误详情 - 连接状态: {ws.sock.connected if ws.sock else 'N/A'}")
+        logger.debug(f"{self.user_number}{phone_info} {lesson_info}WebSocket错误详情 - 错误类型: {type(error)}")
+        logger.debug(
+            f"{self.user_number} {phone_info}{lesson_info}WebSocket错误详情 - 连接状态: {ws.sock.connected if ws.sock else 'N/A'}")
         if hasattr(ws, 'url'):
-            logger.debug(f"{self.user_number} {lesson_info}WebSocket错误详情 - URL: {ws.url[:100]}...")
+            logger.debug(f"{self.user_number} {phone_info}{lesson_info}WebSocket错误详情 - URL: {ws.url[:100]}...")
 
     def _on_close(self, ws, close_status_code, close_msg):
         """WebSocket关闭回调"""
@@ -388,9 +394,10 @@ class WebSocketManager:
 
         # 记录关闭原因
         reason = get_close_reason(close_status_code)
+        phone_info = f"['phone_number': '{self.current_phone_number}']" if self.current_phone_number else "['phone_number': 'None']"
         lesson_info = f"[lesson_id:{self.current_lesson_id}]" if self.current_lesson_id else "[lesson_id:None]"
         logger.info(
-            f"{self.user_number} {lesson_info}WebSocket关闭 | 状态码: {close_status_code} | 原因: {reason} | 关闭消息: {close_msg} | 当前活跃连接: {active} | 累计重连次数: {self.ws_retry_count}")
+            f"{self.user_number} {phone_info}{lesson_info}WebSocket关闭 | 状态码: {close_status_code} | 原因: {reason} | 关闭消息: {close_msg} | 当前活跃连接: {active} | 累计重连次数: {self.ws_retry_count}")
 
     def _is_lesson_complete_message(self, message: str) -> bool:
         """检查是否是课程结束消息（单消息检测，作为备用）"""
@@ -590,11 +597,11 @@ class WebSocketManager:
         # 清空消息缓冲区
         self.message_buffer.clear()
         self.last_message_time = 0
-        
+
         # 清空课程信息
         self.current_lesson_id = None
         self.current_lesson_token = None
-
+        self.current_phone_number = None
     def _add_to_buffer(self, message: str):
         """添加消息到缓冲区"""
         import time
