@@ -66,8 +66,8 @@ class TimingConfig(BaseModel):
     account_multiplier: float = Field(default=1.5, ge=1.0, le=10.0, description="账号数量乘数")
     ws_connect_interval: float = Field(default=5.0, ge=0.1, le=60.0, description="WebSocket连接间隔（秒/个）")
     stats_interval: float = Field(default=60.0, ge=5.0, le=300.0, description="统计打印间隔（秒）")
-    message_send_interval_min: float = Field(default=5.0, ge=0.1, le=60.0, description="消息发送最小间隔（秒）")
-    message_send_interval_max: float = Field(default=10.0, ge=0.1, le=60.0, description="消息发送最大间隔（秒）")
+    message_send_interval_min: float = Field(default=30.0, ge=0.1, le=60.0, description="消息发送最小间隔（秒）")
+    message_send_interval_max: float = Field(default=60.0, ge=0.1, le=60.0, description="消息发送最大间隔（秒）")
     lesson_restart_delay: float = Field(default=5.0, ge=0.1, le=30.0, description="课程结束后重新开始延迟（秒）")
 
 
